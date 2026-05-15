@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>📦 POS Premium - Administración de Productos</title>
+    
+    <!-- 1. CONEXIÓN OFICIAL DE LA LIBRERÍA DE SUPABASE -->
+    <script src="https://jsdelivr.net"></script>
+    
+    <style>
+        body { font-family: system-ui, -apple-system, sans-serif; background-color: #1e1e1e; color: #ffffff; padding: 15px; margin: 0; }
+        .formulario { width: 100%; max-width: 750px; margin: 0 auto; background: #2d2d2d; padding: 15px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        h3 { margin-top: 0; margin-bottom: 5px; color: #ffffff; font-size: 18px; }
+        .fila { display: flex; gap: 12px; margin-bottom: 10px; }
+        .campo { flex: 1; display: flex; flex-direction: column; }
+        label { font-size: 12px; font-weight: 600; margin-bottom: 4px; color: #b3b3b3; }
+        input, select { padding: 8px; font-size: 14px; border: 1px solid #444; border-radius: 5px; background-color: #1e1e1e; color: #ffffff; outline: none; }
+        input:focus, select:focus { border-color: #ff4b4b; }
+        button { width: 100%; padding: 10px; background-color: #ff4b4b; color: white; border: none; font-size: 15px; font-weight: bold; border-radius: 5px; cursor: pointer; margin-top: 5px; }
+        button:hover { background-color: #e04343; }
+        .mensaje { padding: 8px; border-radius: 5px; margin-top: 8px; font-size: 13px; display: none; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div class="formulario">
+        <h3>📦 Administración de Productos</h3>
+        <p style="color: #b3b3b3; font-size: 11px; margin-top:-5px; margin-bottom: 12px;">Motor Asíncrono Híbrido v1.0.0</p>
+        
+        <!-- FILA 1: NOMBRE Y MARCA (INMUNES AL BORRADO) -->
+        <div class="fila">
+            <div class="campo">
+                <label>Nombre del Producto*</label>
+                <input type="text" id="w_nombre" list="sug_nombres" placeholder="Escribe el nombre...">
+                <datalist id="sug_nombres"></datalist>
+            </div>
+            <div class="campo">
+                <label>Marca del Producto</label>
+                <input type="text" id="w_marca" list="sug_marcas" placeholder="Escribe la marca...">
+                <datalist id="sug_marcas"></datalist>
+            </div>
+        </div>
+        
+        <!-- FILA 2: TAMAÑO Y UNIDAD DE MEDIDA -->
+        <div class="fila">
+            <div class="campo">
+                <label>Tamaño / Peso</label>
+                <input type="number" id="w_tamano" placeholder="Caja vacía... Ej: 500, 1, 250">
+            </div>
+            <div class="campo">
+                <label>Unidad de Medida</label>
+                <select id="w_unidad">
+                    <option value="gr">gr</option>
+                    <option value="kg">kg</option>
+                    <option value="ml">ml</option>
+                    <option value="lt">lt</option>
+                    <option value="unidad">unidad</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- FILA 3: CATEGORÍA Y SUBCATEGORÍA EN CASCADA -->
+        <div class="fila">
+            <div class="campo">
+                <label>Categoría Principal</label>
+                <select id="w_categoria" onchange="actualizarSubcategoriasCascada()">
+                    <option value="">--- Seleccionar ---</option>
+                </select>
+            </div>
+            <div class="campo">
+                <label>Subcategoría (Reactiva)</label>
+                <select id="w_subcategoria">
+                    <option value="">--- Seleccionar ---</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- FILA 4: CONTROL DE CÓDIGO DE BARRAS -->
+        <div class="fila">
+            <div class="campo">
+                <label>Código de Barras (SKU)</label>
+                <input type="text" id="w_barras" placeholder="Escanea o escribe el código...">
+            </div>
+            <div class="campo" style="flex:0; min-width:150px; justify-content: flex-end;">
+                <label style="display:flex; align-items:center; gap:5px; cursor:pointer; font-size:12px; padding-bottom:10px;">
+                    <input type="checkbox" id="w_forzar" style="accent-color:#ff4b4b;"> ⚠️ Forzar registro
+                </label>
+            </div>
+        </div>
+
+        <button id="btn_guardar" onclick="guardarProductoPOS()">🚀 Guardar Producto en Catálogo</button>
+        <div id="panel_mensaje" class="mensaje"></div>
+    </div>
+
+    <script>
+        // --- 2. MODIFICA ESTAS DOS LÍNEAS CON TUS CREDENCIALES REALES ---
+        const SUPABASE_URL = "https://pmhusucbjptpsahrxird.supabase.co"
+        const SUPABASE_KEY = "sb_publishable_KX7Ap3Led8LZbIeQwHEhxQ_QNIWtru_"
+        
+        // Inicializamos el cliente oficial de Supabase en el navegador
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // Variables globales en la RAM del navegador
+        let categoriasMaestras = [];
+        let subcategoriasMaestras = [];
+        let productosMaestros = [];
+
+        // --- 3. FUNCIÓN ASÍNCRONA: DESCARGA DATOS DE TU SUPABASE REAL ---
+        async function conectarYAlimentarPantalla() {
+            try {
+                // Descargamos los primeros 100 nombres reales de productos
+                const { data: prods } = await _supabase.from('productos').select('nombre, marca').order('nombre').limit(100);
+                productosMaestros = prods || [];
+
+                // Descargamos todas las categorías y subcategorías
+                const { data: cats } = await _supabase.from('categorias').select('*').order('id_cat');
+                const { data: subcats } = await _supabase.from('subcategorias').select('*').order('nombre');
+                
+                categoriasMaestras = cats || [];
+                subcategoriasMaestras = subcats || [];
+
+                // Alimentamos los datalists predictivos de Nombre y Marca
+                const dl_n = document.getElementById('sug_nombres');
+                const nombresUnicos = [...new Set(productosMaestros.map(p => p.nombre))].sort();
+                nombresUnicos.forEach(n => {
+                    let opt = document.createElement('option'); opt.value = n; dl_n.appendChild(opt);
+                });
+
+                const dl_m = document.getElementById('sug_marcas');
+                const marcasUnicas = [...new Set(productosMaestros.map(p => p.marca).filter(m => m))].sort();
+                marcasUnicas.forEach(m => {
+                    let opt = document.createElement('option'); opt.value = m; dl_m.appendChild(opt);
+                });
+
+                // Alimentamos el selector de Categorías Principal
+                const sel_c = document.getElementById('w_categoria');
+                categoriasMaestras.forEach(c => {
+                    let opt = document.createElement('option');
+                    opt.value = c.id_cat;
+                    opt.textContent = c.nombre;
+                    sel_c.appendChild(opt);
+                });
+
+            } catch (error) {
+                mostrarMensaje("🚨 Error de conexión: Revisa tus credenciales de Supabase.", "#e04343");
+            }
+        }
+
+        // --- 4. LÓGICA DE CASCADA REACTIVA EN PRIMER PLANO ---
+        function actualizarSubcategoriasCascada() {
+            const idCatSel = document.getElementById('w_categoria').value;
+            const sel_s = document.getElementById('w_subcategoria');
+            
+            // Limpiamos las opciones viejas
+            sel_s.innerHTML = '<option value="">--- Seleccionar ---</option>';
+            
+            if (idCatSel) {
+                // Filtramos las subcategorías en la RAM de forma instantánea
+                const filtradas = subcategoriasMaestras.filter(sc => sc.id_cat == idCatSel);
+                filtradas.forEach(sc => {
+                    let opt = document.createElement('option');
+                    opt.value = sc.id_subcat;
+                    opt.textContent = sc.nombre;
+                    sel_s.appendChild(opt);
+                });
+            }
+        }
+
+        // --- 5. LOGICA MAESTRA DEL BOTÓN GUARDAR (INSERT Y ANTI-DUPLICADOS) ---
+        async function guardarProductoPOS() {
+            const nom = document.getElementById('w_nombre').value.trim();
+            const mar = document.getElementById('w_marca').value.trim();
+            const tam = document.getElementById('w_tamano').value;
+            const uni = document.getElementById('w_unidad').value;
+            const cat = document.getElementById('w_categoria').value;
+            const sub = document.getElementById('w_subcategoria').value;
+            const bar = document.getElementById('w_barras').value.trim();
+            const forzar = document.getElementById('w_forzar').checked;
+
+            if (!nom) { mostrarMensaje("⚠️ El campo Nombre es obligatorio.", "#e6a23c"); return; }
+
+            // Validación de clones en la RAM local
+            if (!forzar && productosMaestros.length > 0) {
+                const clon = productosMaestros.find(p => 
+                    p.nombre.toLowerCase().replace(/\s+/g, '') === nom.toLowerCase().replace(/\s+/g, '') &&
+                    (p.marca || '').toLowerCase().replace(/\s+/g, '') === mar.toLowerCase().replace(/\s+/g, '')
+                );
+                if (clon) { mostrarMensaje(`🚨 CLON DETECTADO: Ya existe '${nom}' con marca '${mar}'.`, "#e04343"); return; }
+            }
+
+            // Armamos el paquete de datos relacionales limpio
+            const paquete = {
+                nombre: nom,
+                marca: mar ? mar : null,
+                tamano: tam ? parseFloat(tam) : null,
+                unidad: uni,
+                id_cat: cat ? parseInt(cat) : null,
+                id_subcat: sub ? parseInt(sub) : null,
+                codigo_barras: bar ? bar : null
+            };
+
+            // Enviamos los datos congelados a Supabase
+            const { error } = await _supabase.from('productos').insert([paquete]);
+
+            if (error) {
+                mostrarMensaje(`🚨 Error en Supabase: ${error.message}`, "#e04343");
+            } else {
+                mostrarMensaje("🎉 ¡Producto registrado exitosamente!", "#2bc443");
+                // RESETEO ABSOLUTO POST-GUARDADO: Dejamos la pantalla limpia en blanco
+                document.getElementById('w_nombre').value = "";
+                document.getElementById('w_marca').value = "";
+                document.getElementById('w_tamano').value = "";
+                document.getElementById('w_categoria').value = "";
+                document.getElementById('w_subcategoria').innerHTML = '<option value="">--- Seleccionar ---</option>';
+                document.getElementById('w_barras').value = "";
+                document.getElementById('w_forzar').checked = false;
+                
+                // Recargamos el caché local en segundo plano
+                conectarYAlimentarPantalla();
+            }
+        }
+
+        function mostrarMensaje(texto, color) {
+            const panel = document.getElementById('panel_mensaje');
+            panel.innerText = texto;
+            panel.style.backgroundColor = color;
+            panel.style.display = "block";
+            if (color === "#2bc443") { setTimeout(() => { panel.style.display = "none"; }, 4000); }
+        }
+
+        // Se ejecuta automáticamente al abrir la página
+        window.onload = conectarYAlimentarPantalla;
+    </script>
+</body>
+</html>
