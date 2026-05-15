@@ -2,14 +2,8 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>📦 POS Premium - Administración de Productos</title>
-    
-    <!-- 1. CONEXIÓN OFICIAL DE LA LIBRERÍA DE SUPABASE -->
+    <title>📦 POS Premium - Catálogo</title>
     <script src="https://jsdelivr.net"></script>
-    
-    <!-- 2. INYECCIÓN DEL ARCHIVO DE CREDENCIALES EXTERNO -->
-    <script src="config.js"></script>
-    
     <style>
         body { font-family: system-ui, -apple-system, sans-serif; background-color: #1e1e1e; color: #ffffff; padding: 15px; margin: 0; }
         .formulario { width: 100%; max-width: 750px; margin: 0 auto; background: #2d2d2d; padding: 15px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
@@ -28,9 +22,8 @@
 
     <div class="formulario">
         <h3>📦 Administración de Productos</h3>
-        <p style="color: #b3b3b3; font-size: 11px; margin-top:-5px; margin-bottom: 12px;">Motor Asíncrono Híbrido v1.2.0 - Credenciales Aisladas</p>
+        <p style="color: #b3b3b3; font-size: 11px; margin-top:-5px; margin-bottom: 12px;">Motor Asíncrono Unificado v1.3.0</p>
         
-        <!-- FILA 1: NOMBRE Y MARCA (INMUNES AL BORRADO CON APERTURA POR FOCO) -->
         <div class="fila">
             <div class="campo">
                 <label>Nombre del Producto*</label>
@@ -44,11 +37,10 @@
             </div>
         </div>
         
-        <!-- FILA 2: TAMAÑO Y UNIDAD DE MEDIDA -->
         <div class="fila">
             <div class="campo">
                 <label>Tamaño / Peso</label>
-                <input type="number" id="w_tamano" placeholder="Caja vacía... Ej: 500, 1, 250">
+                <input type="number" id="w_tamano" placeholder="Ej: 500, 1, 250">
             </div>
             <div class="campo">
                 <label>Unidad de Medida</label>
@@ -62,7 +54,6 @@
             </div>
         </div>
 
-        <!-- FILA 3: CATEGORÍA Y SUBCATEGORÍA EN CASCADA -->
         <div class="fila">
             <div class="campo">
                 <label>Categoría Principal</label>
@@ -78,7 +69,6 @@
             </div>
         </div>
 
-        <!-- FILA 4: CONTROL DE CÓDIGO DE BARRAS -->
         <div class="fila">
             <div class="campo">
                 <label>Código de Barras (SKU)</label>
@@ -96,8 +86,14 @@
     </div>
 
     <script>
-        // Leemos de forma automática las llaves heredadas desde config.js
-        const _supabase = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
+        // =========================================================================
+        // COLOCA TUS CREDENCIALES REALES AQUÍ ADENTRO UNA SOLA VEZ
+        // =========================================================================
+
+        const SUPABASE_URL = "https://pmhusucbjptpsahrxird.supabase.co"
+        const SUPABASE_KEY = "sb_publishable_KX7Ap3Led8LZbIeQwHEhxQ_QNIWtru_"
+
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         let categoriasMaestras = [];
         let subcategoriasMaestras = [];
@@ -114,7 +110,7 @@
                 categoriasMaestras = cats || [];
                 subcategoriasMaestras = subcats || [];
 
-                // Alimentamos el datalist predictivo de Nombre (Saneado v1.2.0)
+                // Renderizado de Nombres (Saneado v1.3.0)
                 const dl_n = document.getElementById('sug_nombres');
                 dl_n.innerHTML = "";
                 const nombresUnicos = [...new Set(productosMaestros.map(p => p.nombre).filter(n => n))].sort();
@@ -122,7 +118,7 @@
                     let opt = document.createElement('option'); opt.value = n; dl_n.appendChild(opt);
                 });
 
-                // Alimentamos el datalist predictivo de Marca
+                // Renderizado de Marcas
                 const dl_m = document.getElementById('sug_marcas');
                 dl_m.innerHTML = "";
                 const marcasUnicas = [...new Set(productosMaestros.map(p => p.marca).filter(m => m))].sort();
@@ -130,7 +126,7 @@
                     let opt = document.createElement('option'); opt.value = m; dl_m.appendChild(opt);
                 });
 
-                // Alimentamos el selector de Categorías Principal
+                // Renderizado de Categorías
                 const sel_c = document.getElementById('w_categoria');
                 sel_c.innerHTML = '<option value="">--- Seleccionar ---</option>';
                 categoriasMaestras.forEach(c => {
@@ -141,7 +137,7 @@
                 });
 
             } catch (error) {
-                mostrarMensaje("🚨 Error de conexión: Revisa tu archivo config.js.", "#e04343");
+                mostrarMensaje("🚨 Error de conexión: Revisa tus credenciales dentro del script.", "#e04343");
             }
         }
 
